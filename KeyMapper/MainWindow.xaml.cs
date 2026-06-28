@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private bool _reallyExit;
     private bool _initialized;
     private bool _suspendMappingChanges;
+    private bool _active;
 
     public ObservableCollection<MappingVm> Mappings { get; } = new();
 
@@ -71,14 +72,14 @@ public partial class MainWindow : Window
     {
         if (!_initialized || _suspendMappingChanges) return;
         SaveConfig();
-        if (_hook.IsRemapping) ApplyRemap();
+        if (_active) ApplyRemap();
         UpdateEmptyState();
         UpdateStatus();
     }
 
     private void SaveConfig()
     {
-        var cfg = new AppConfig { Active = MasterSwitch.IsChecked == true };
+        var cfg = new AppConfig { Active = _active };
         foreach (var vm in Mappings)
             cfg.Mappings.Add(new Mapping
             {
@@ -106,35 +107,37 @@ public partial class MainWindow : Window
     // —— 改键启停 ——
     private void StartRemap()
     {
+        _active = true;
         ApplyRemap();
         UpdateStatus();
     }
 
     private void StopRemap()
     {
+        _active = false;
         _hook.Stop();
         UpdateStatus();
     }
 
     private void UpdateStatus()
     {
-        bool running = _hook.IsRemapping;
+        bool active = _active;
         int enabled = Mappings.Count(m => m.Enabled);
         int total = Mappings.Count;
-        StatusDot.Fill = running
+        StatusDot.Fill = active
             ? (Brush)FindResource("SuccessBrush")
             : (Brush)FindResource("MutedBrush");
-        StatusText.Text = running
-            ? $"运行中 · {enabled} 个映射生效"
+        StatusText.Text = active
+            ? enabled == 0 ? "已开启 · 暂无映射" : $"运行中 · {enabled} 个映射生效"
             : enabled == 0 ? "已暂停 · 没有启用的映射" : $"已暂停 · {enabled} 个映射待生效";
         SummaryText.Text = total == 0
             ? "还没有映射"
             : enabled == total ? $"{total} 个映射" : $"{enabled}/{total} 个已启用";
-        MappingList.Opacity = running ? 1.0 : 0.42;
-        MappingList.IsHitTestVisible = running;
-        ListDisabledOverlay.Visibility = !running && total > 0 ? Visibility.Visible : Visibility.Collapsed;
-        MasterSwitch.IsChecked = running;
-        _tray.SetTooltip(running
+        MappingList.Opacity = active ? 1.0 : 0.42;
+        MappingList.IsHitTestVisible = active;
+        ListDisabledOverlay.Visibility = !active && total > 0 ? Visibility.Visible : Visibility.Collapsed;
+        MasterSwitch.IsChecked = active;
+        _tray.SetTooltip(active
             ? $"键盘按键映射 · 运行中（{enabled} 项）"
             : "键盘按键映射 · 已暂停");
     }
@@ -147,12 +150,6 @@ public partial class MainWindow : Window
     {
         if (MasterSwitch.IsChecked == true)
         {
-            if (!Mappings.Any(m => m.Enabled))
-            {
-                AppDialog.Alert(this, "无法开启改键", "没有已启用的映射，请先添加。");
-                MasterSwitch.IsChecked = false;
-                return;
-            }
             StartRemap();
         }
         else
