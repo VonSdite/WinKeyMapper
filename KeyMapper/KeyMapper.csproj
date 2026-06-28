@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>KeyMapper</AssemblyName>
+    <RootNamespace>KeyMapper</RootNamespace>
+    <Version>1.0.0</Version>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <!-- 发布为「框架依赖 + 单文件」：体积极小，仅需目标机装有 .NET 8 桌面运行时。
+       自包含发布见 README（无需装运行时，但体积大）。 -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+</Project>
