@@ -13,12 +13,15 @@
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
-  <!-- 发布为「框架依赖 + 单文件」：体积极小，仅需目标机装有 .NET 8 桌面运行时。
-       自包含发布见 README（无需装运行时，但体积大）。 -->
+  <!-- Release 默认发布为「自包含 + 单文件」：目标机器无需安装 .NET 桌面运行时。 -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>false</SelfContained>
-    <DebugType>embedded</DebugType>
+    <SelfContained>true</SelfContained>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
 </Project>

@@ -3,8 +3,8 @@
 一个 Windows 原生桌面小工具，通过底层键盘钩子把任意「源键」改写为「目标键」，并提供
 图形界面进行可视化配置。适合键盘缺键（如缺 Home/End）时用其它键顶替。
 
-- **原生精简**：C#/.NET 8 + WPF，原生 `WH_KEYBOARD_LL` 钩子、原生 `NotifyIcon` 托盘，
-  无 Python 运行时、无第三方 UI 库；可发布为单文件 exe。
+- **免安装运行时**：C#/.NET 8 + WPF，原生 `WH_KEYBOARD_LL` 钩子、原生 `NotifyIcon` 托盘，
+  Release 默认发布为自包含单文件 exe，目标机器无需安装 .NET Desktop Runtime。
 - **现代界面**：自绘深色主题、圆角卡片、强调色按钮、状态指示灯。
 - **系统托盘**：关闭窗口即最小化到托盘后台运行，右键托盘图标退出。
 
@@ -36,9 +36,9 @@ cd KeyMapper
 dotnet run -c Release
 ```
 
-### 发布为单文件 exe
+### 发布为免运行时单文件 exe
 
-框架依赖（体积极小，约 1 MB，需目标机装有 .NET 8 桌面运行时）：
+Release 默认是 `win-x64` 自包含单文件发布，目标机器无需安装 .NET 桌面运行时：
 
 ```bat
 cd KeyMapper
@@ -46,10 +46,12 @@ dotnet publish -c Release -o publish
 :: 产物：publish\KeyMapper.exe
 ```
 
-自包含（无需装运行时，体积较大，约 70 MB+）：
+取舍：这个 exe 会比框架依赖版本大很多，但复制到未安装 .NET 的 Windows 机器上也能直接运行。
+
+如果只给已安装 .NET 8 Desktop Runtime 的机器使用，可以临时发布框架依赖小体积版本：
 
 ```bat
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish-fd
 ```
 
 首次运行为空配置，按需添加映射；配置写入 `%APPDATA%\KeyMapper\config.json`。

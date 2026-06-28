@@ -3,6 +3,7 @@ bin/
 obj/
 *.user
 publish/
+publish-single/
 
 # IDE / 编辑器
 .vscode/
