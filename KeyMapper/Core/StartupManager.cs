@@ -9,15 +9,22 @@ public static class StartupManager
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "KeyMapper";
+    private const string TrayArgument = "--tray";
 
     public static bool IsEnabled()
     {
-        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
-        string? value = key?.GetValue(ValueName) as string;
-        string appPath = AppPath;
-        return !string.IsNullOrWhiteSpace(value) &&
-               !string.IsNullOrWhiteSpace(appPath) &&
-               value.Contains(appPath, StringComparison.OrdinalIgnoreCase);
+        string? value = CurrentValue();
+        return IsCurrentAppValue(value);
+    }
+
+    public static void EnsureTrayArgument()
+    {
+        string? value = CurrentValue();
+        if (IsCurrentAppValue(value) &&
+            !value!.Contains(TrayArgument, StringComparison.OrdinalIgnoreCase))
+        {
+            SetEnabled(true);
+        }
     }
 
     public static void SetEnabled(bool enabled)
@@ -33,7 +40,7 @@ public static class StartupManager
             if (string.IsNullOrWhiteSpace(appPath))
                 throw new InvalidOperationException("无法确定当前程序路径。");
 
-            key.SetValue(ValueName, Quote(appPath), RegistryValueKind.String);
+            key.SetValue(ValueName, $"{Quote(appPath)} {TrayArgument}", RegistryValueKind.String);
         }
         else
         {
@@ -45,6 +52,20 @@ public static class StartupManager
         Environment.ProcessPath ??
         Process.GetCurrentProcess().MainModule?.FileName ??
         string.Empty;
+
+    private static string? CurrentValue()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, false);
+        return key?.GetValue(ValueName) as string;
+    }
+
+    private static bool IsCurrentAppValue(string? value)
+    {
+        string appPath = AppPath;
+        return !string.IsNullOrWhiteSpace(value) &&
+               !string.IsNullOrWhiteSpace(appPath) &&
+               value.Contains(appPath, StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string Quote(string path) => $"\"{path}\"";
 }

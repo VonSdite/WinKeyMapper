@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         _hook.Install();
         UpdateEmptyState();
 
+        StartupManager.EnsureTrayArgument();
         StartupSwitch.IsChecked = StartupManager.IsEnabled();
         MasterSwitch.IsChecked = cfg.Active;
         if (cfg.Active) StartRemap(); else UpdateStatus();
