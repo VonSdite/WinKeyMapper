@@ -9,6 +9,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>KeyMapper</AssemblyName>
     <RootNamespace>KeyMapper</RootNamespace>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
