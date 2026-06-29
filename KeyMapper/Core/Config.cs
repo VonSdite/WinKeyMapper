@@ -32,10 +32,15 @@ public static class ConfigStore
 
     public static AppConfig Load()
     {
+        return LoadFrom(FilePath);
+    }
+
+    public static AppConfig LoadFrom(string path)
+    {
         try
         {
-            if (!File.Exists(FilePath)) return new AppConfig();
-            var json = File.ReadAllText(FilePath);
+            if (!File.Exists(path)) return new AppConfig();
+            var json = File.ReadAllText(path);
             return JsonSerializer.Deserialize<AppConfig>(json) ?? new AppConfig();
         }
         catch

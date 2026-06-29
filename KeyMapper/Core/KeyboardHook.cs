@@ -8,7 +8,7 @@ namespace KeyMapper.Core;
 /// 底层键盘钩子（WH_KEYBOARD_LL）：改键 + 按键捕获。
 /// 钩子运行在安装它的线程（UI 线程）上，借 WPF 消息循环驱动，无需额外依赖。
 ///
-/// 改键策略：吞掉源键事件，用 SendInput 注入目标键。注入时附带正确扫描码与
+/// 改键策略：吞掉源键事件，用 SendInput 按扫描码注入目标键。注入时附带
 /// KEYEVENTF_EXTENDEDKEY（旧实现扫描码恒为 0，导致依赖扫描码的程序收不到目标键）。
 /// 注入事件带 LLKHF_INJECTED 标志，回调中跳过，避免循环。
 /// </summary>
@@ -23,7 +23,9 @@ public sealed class KeyboardHook : IDisposable
     private const uint INPUT_KEYBOARD = 1;
     private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
     private const uint KEYEVENTF_KEYUP = 0x0002;
+    private const uint KEYEVENTF_SCANCODE = 0x0008;
     private const uint MAPVK_VK_TO_VSC = 0;
+    private const int VK_PAUSE = 0x13;
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -235,12 +237,15 @@ public sealed class KeyboardHook : IDisposable
 
     private void SendKey(Target t, bool down)
     {
+        bool useScancode = t.Scan != 0 && t.Vk != VK_PAUSE;
         _inputBuf[0].type = INPUT_KEYBOARD;
         _inputBuf[0].u.ki = new KEYBDINPUT
         {
-            wVk = (ushort)t.Vk,
+            wVk = useScancode ? (ushort)0 : (ushort)t.Vk,
             wScan = (ushort)t.Scan,
-            dwFlags = (down ? 0u : KEYEVENTF_KEYUP) | (t.Extended ? KEYEVENTF_EXTENDEDKEY : 0u),
+            dwFlags = (useScancode ? KEYEVENTF_SCANCODE : 0u)
+                | (down ? 0u : KEYEVENTF_KEYUP)
+                | (t.Extended ? KEYEVENTF_EXTENDEDKEY : 0u),
             time = 0u,
             dwExtraInfo = IntPtr.Zero,
         };

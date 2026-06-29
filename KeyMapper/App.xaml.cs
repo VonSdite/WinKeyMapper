@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using KeyMapper.Core;
 
 namespace KeyMapper;
 
@@ -11,6 +12,12 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        if (SystemKeyMapper.TryRunStartupCommand(e.Args, out int exitCode))
+        {
+            Shutdown(exitCode);
+            return;
+        }
 
         var window = new MainWindow();
         MainWindow = window;

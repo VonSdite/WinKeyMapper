@@ -79,6 +79,11 @@ public partial class MainWindow : Window
 
     private void SaveConfig()
     {
+        ConfigStore.Save(BuildConfig());
+    }
+
+    private AppConfig BuildConfig()
+    {
         var cfg = new AppConfig { Active = _active };
         foreach (var vm in Mappings)
             cfg.Mappings.Add(new Mapping
@@ -87,7 +92,7 @@ public partial class MainWindow : Window
                 TargetId = vm.TargetId,
                 Enabled = vm.Enabled,
             });
-        ConfigStore.Save(cfg);
+        return cfg;
     }
 
     private void ApplyRemap()
@@ -174,6 +179,81 @@ public partial class MainWindow : Window
                 "开机启动设置失败",
                 "无法写入当前用户的开机启动项。",
                 ex.Message);
+        }
+    }
+
+    private void ApplySystem_Click(object sender, RoutedEventArgs e)
+    {
+        var cfg = BuildConfig();
+        int count;
+        try
+        {
+            count = SystemKeyMapper.CountConfigMappings(cfg);
+        }
+        catch (Exception ex)
+        {
+            AppDialog.Alert(
+                this,
+                "系统级映射不可用",
+                "当前规则里有 Windows Scancode Map 不支持的按键。",
+                ex.Message);
+            return;
+        }
+
+        if (count == 0)
+        {
+            AppDialog.Alert(
+                this,
+                "没有可写入的映射",
+                "请先启用至少一条有效映射。",
+                "系统级映射只会写入已启用、且源键和目标键不同的规则。");
+            return;
+        }
+
+        string detail = $"将写入 {count} 条启用映射。写入后需要重启 Windows 才会在 Git Bash、终端和提权窗口中生效。";
+        if (SystemKeyMapper.HasSystemMap())
+            detail += $"{Environment.NewLine}{Environment.NewLine}检测到系统里已有 Scancode Map，本次写入会先备份它；以后点“清除系统”会恢复备份。";
+
+        bool confirmed = AppDialog.Confirm(
+            this,
+            "写入系统级映射",
+            "把当前启用规则写入 Windows Scancode Map？",
+            detail,
+            "写入",
+            "取消");
+        if (!confirmed)
+            return;
+
+        ConfigStore.Save(cfg);
+        if (RunSystemCommand(SystemKeyMapper.ApplyArgumentsForConfig(ConfigStore.FilePath)))
+        {
+            AppDialog.Alert(
+                this,
+                "系统级映射已写入",
+                "请重启 Windows 让系统级映射生效。",
+                "重启后，这些映射会在更底层生效，不依赖本程序的键盘钩子。");
+        }
+    }
+
+    private void ClearSystem_Click(object sender, RoutedEventArgs e)
+    {
+        bool confirmed = AppDialog.Confirm(
+            this,
+            "清除系统级映射",
+            "清除 Windows Scancode Map？",
+            "这只会移除本工具写入的系统级映射，不会删除当前列表里的规则。清除后需要重启 Windows 才会恢复。",
+            "清除",
+            "取消");
+        if (!confirmed)
+            return;
+
+        if (RunSystemCommand(SystemKeyMapper.ClearArgument))
+        {
+            AppDialog.Alert(
+                this,
+                "系统级映射已清除",
+                "请重启 Windows 让清除操作生效。",
+                "当前列表里的规则仍会保留，可继续用于软件层实时映射。");
         }
     }
 
@@ -303,6 +383,83 @@ public partial class MainWindow : Window
 
     private static string DisplayOf(string id) =>
         Keys.ById(id)?.Display ?? id;
+
+    private bool RunSystemCommand(string arguments)
+    {
+        try
+        {
+            int exitCode;
+            if (SystemKeyMapper.IsAdministrator())
+            {
+                exitCode = RunSystemCommandAsAdmin(arguments);
+            }
+            else
+            {
+                var result = SystemKeyMapper.RunElevatedAndWait(arguments);
+                if (result.Cancelled)
+                {
+                    AppDialog.Alert(
+                        this,
+                        "需要管理员权限",
+                        "系统级映射需要管理员权限，刚才的 UAC 请求已取消。");
+                    return false;
+                }
+
+                if (!result.Started)
+                {
+                    AppDialog.Alert(
+                        this,
+                        "无法请求管理员权限",
+                        "没有成功启动提权写入进程。");
+                    return false;
+                }
+
+                exitCode = result.ExitCode;
+            }
+
+            if (exitCode == SystemKeyMapper.SuccessExitCode)
+                return true;
+
+            string detail = exitCode switch
+            {
+                SystemKeyMapper.NoMappingsExitCode => "提权进程没有读到可写入的启用映射。",
+                SystemKeyMapper.NoOwnedMapExitCode => "没有找到本工具写入的系统级映射标记。为避免误删，不会清除当前系统映射。",
+                SystemKeyMapper.CurrentMapChangedExitCode => "当前 Scancode Map 已被其他工具或手动修改。为避免覆盖别人的改动，不会清除或恢复。",
+                _ => "注册表写入失败。",
+            };
+            AppDialog.Alert(this, "系统级映射失败", "没有完成系统级映射操作。", detail);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            AppDialog.Alert(this, "系统级映射失败", "没有完成系统级映射操作。", ex.Message);
+            return false;
+        }
+    }
+
+    private int RunSystemCommandAsAdmin(string arguments)
+    {
+        if (arguments.StartsWith(SystemKeyMapper.ApplyArgument, StringComparison.OrdinalIgnoreCase))
+        {
+            var cfg = BuildConfig();
+            return SystemKeyMapper.ApplyConfig(cfg) > 0
+                ? SystemKeyMapper.SuccessExitCode
+                : SystemKeyMapper.NoMappingsExitCode;
+        }
+
+        if (string.Equals(arguments, SystemKeyMapper.ClearArgument, StringComparison.OrdinalIgnoreCase))
+        {
+            return SystemKeyMapper.Clear() switch
+            {
+                SystemMapClearResult.Cleared => SystemKeyMapper.SuccessExitCode,
+                SystemMapClearResult.NoOwnedMap => SystemKeyMapper.NoOwnedMapExitCode,
+                SystemMapClearResult.CurrentMapChanged => SystemKeyMapper.CurrentMapChangedExitCode,
+                _ => SystemKeyMapper.ErrorExitCode,
+            };
+        }
+
+        return SystemKeyMapper.ErrorExitCode;
+    }
 
     // —— 托盘 / 关闭 ——
     protected override void OnClosing(CancelEventArgs e)

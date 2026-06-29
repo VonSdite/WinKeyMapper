@@ -72,8 +72,16 @@
                 <TextBlock x:Name="SummaryText" Margin="10,1,0,0"
                            Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
             </StackPanel>
-            <Button Grid.Column="1" Content="＋ 添加映射" Style="{StaticResource AccentButton}"
-                    Click="Add_Click"/>
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Content="写入系统" Style="{StaticResource SecondaryButton}"
+                        Click="ApplySystem_Click"
+                        ToolTip="把当前启用规则写入 Windows Scancode Map，重启后生效"/>
+                <Button Content="清除系统" Style="{StaticResource SecondaryButton}"
+                        Click="ClearSystem_Click" Margin="8,0,8,0"
+                        ToolTip="清除 Windows Scancode Map，重启后恢复"/>
+                <Button Content="＋ 添加映射" Style="{StaticResource AccentButton}"
+                        Click="Add_Click"/>
+            </StackPanel>
         </Grid>
 
         <!-- 映射列表 -->
@@ -154,7 +162,7 @@
         <!-- 底部提示 -->
         <TextBlock Grid.Row="3" Margin="0,14,0,0" FontSize="11"
                    Foreground="{StaticResource MutedBrush}">
-            关闭窗口会收起到托盘 · 右键托盘图标退出 · 改动自动保存
+            写入系统级映射需管理员权限并重启后生效 · 关闭窗口会收起到托盘 · 改动自动保存
         </TextBlock>
     </Grid>
 </Window>
